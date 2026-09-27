@@ -7,6 +7,8 @@ pygame.init()
 # Configurações da Janela (Agora o 3D ocupa tudo, minimapa fica por cima)
 LARGURA_TELA = 800
 ALTURA_TELA = 600
+# Damos uma pequena margem (ex: 12 unidades) para o jogador não "entrar" na parede visualmente
+MARGEM = 12
 tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA))
 pygame.display.set_caption("Motor Matemático Estilo DOOM/Wolfenstein")
 
@@ -40,7 +42,7 @@ MAPA = [
 
 # Variáveis do Jogador
 player_x = 120
-player_y = 120
+player_y = 300
 player_angle = 0.0
 velocidade = 4  # Reduzi um pouco para o movimento ficar mais suave
 
@@ -65,23 +67,54 @@ def cenario_fundo_draw():
     # Desenha o Chão
     pygame.draw.rect(tela, CHAO_COR, (0, ALTURA_TELA / 2, LARGURA_TELA, ALTURA_TELA / 2))
 
+def check_for_colisions(player_x, proximo_x, player_y, proximo_y):
+    # --- MATEMÁTICA DA COLISÃO ---
+    # 1. Testar colisão apenas no eixo X
+    # Dependendo da direção que andamos, checamos um pouco mais à frente ou atrás (usando a MARGEM)
+    sinal_x = 1 if (proximo_x > player_x) else -1
+    teste_mapa_x = int((proximo_x + sinal_x * MARGEM) / TAMANHO_BLOCO)
+    mapa_atual_y = int(player_y / TAMANHO_BLOCO)
+    
+    if MAPA[mapa_atual_y][teste_mapa_x] != '1':
+        player_x = proximo_x  # Se estiver livre em X, o jogador pode andar neste eixo
+
+    # 2. Testar colisão apenas no eixo Y
+    sinal_y = 1 if (proximo_y > player_y) else -1
+    teste_mapa_y = int((proximo_y + sinal_y * MARGEM) / TAMANHO_BLOCO)
+    mapa_atual_x = int(player_x / TAMANHO_BLOCO)
+    
+    if MAPA[teste_mapa_y][mapa_atual_x] != '1':
+        player_y = proximo_y  # Se estiver livre em Y, o jogador pode andar neste eixo
+
+    return player_x, player_y
+
 while rodando:
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             rodando = False
 
-    # 1. Controles do Jogador
+        # 1. Controles do Jogador com Cálculo de Colisão (Eixos Separados)
     teclas = pygame.key.get_pressed()
+    
+    # Rotação (ângulo) não precisa de colisão
     if teclas[pygame.K_LEFT]:
         player_angle -= 0.05
     if teclas[pygame.K_RIGHT]:
         player_angle += 0.05
+
+    # Inicializa variáveis para calcular o próximo passo (proposta de movimento)
+    proximo_x = player_x
+    proximo_y = player_y
+
     if teclas[pygame.K_UP]:
-        player_x += math.cos(player_angle) * velocidade
-        player_y += math.sin(player_angle) * velocidade
+        proximo_x += math.cos(player_angle) * velocidade
+        proximo_y += math.sin(player_angle) * velocidade
     if teclas[pygame.K_DOWN]:
-        player_x -= math.cos(player_angle) * velocidade
-        player_y -= math.sin(player_angle) * velocidade
+        proximo_x -= math.cos(player_angle) * velocidade
+        proximo_y -= math.sin(player_angle) * velocidade
+
+    player_x, player_y = check_for_colisions(player_x, proximo_x, player_y, proximo_y)
+
 
     # 1. PRIMEIRO: Desenha o fundo (Teto e Chão) ocupando a tela inteira
     cenario_fundo_draw()
